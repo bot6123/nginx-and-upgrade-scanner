@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>PAN-OS Autopilot — Devices → Validation (Risk & Readiness)</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#0e1628; --card:#0f1729; --muted:#94a3b8; --text:#e5e7eb; --line:#1f2937;
+      --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6; --slate:#334155;
+    }
+    *{box-sizing:border-box} body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background:linear-gradient(180deg,#0a1120 0%,#0b1220 40%,#0a1020 100%); color:var(--text)}
+    .app{display:grid; grid-template-columns:260px 1fr; min-height:100vh}
+    .nav{background:linear-gradient(180deg,#0b1428,#0a1325); border-right:1px solid #142039; padding:18px}
+    .nav h2{font-size:14px; color:#cbd5e1; letter-spacing:.08em; text-transform:uppercase; margin:10px 0}
+    .tree{display:grid; gap:6px; margin-top:8px}
+    .tree .item{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:10px; cursor:pointer; color:#cbd5e1}
+    .tree .item:hover{background:#0e1a34}
+    .tree .item.active{background:#122046; border:1px solid #1f2f55}
+    .content{padding:22px 22px 36px 22px}
+    .muted{color:var(--muted)}
+    .header{display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:14px}
+    h1{font-size:24px; margin:0}
+    .card{background:linear-gradient(180deg,#0f1729, #0e1628); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .btn{background:linear-gradient(180deg,#2563eb,#1d4ed8); border:1px solid #1e40af; color:white; padding:9px 12px; border-radius:10px; cursor:pointer; font-weight:600}
+    .btn:disabled{opacity:.6; cursor:not-allowed}
+    .btn.secondary{background:#0f1729; border:1px solid #334155; color:#e2e8f0}
+    .btn.ghost{background:transparent; border:1px solid #334155; color:#e2e8f0}
+    input[type=text], select{background:#0c1426; color:var(--text); border:1px solid #1f2a44; padding:8px 10px; border-radius:10px; outline:none}
+    table{width:100%; border-collapse:separate; border-spacing:0; font-size:14px}
+    th, td{padding:10px 12px; border-bottom:1px solid #1f2a44}
+    thead th{position:sticky; top:0; background:#0f1729; text-align:left; color:#cbd5e1; z-index:1}
+    tbody tr:hover{background:#0d162b}
+    .tag{font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid #334155; color:#cbd5e1}
+    .tag.ok{background:#052e1a; color:#86efac; border-color:#14532d}
+    .tag.warn{background:#2b2004; color:#facc15; border-color:#92400e}
+    .tag.err{background:#2b0a0a; color:#fca5a5; border-color:#7f1d1d}
+    .toolbar{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px}
+    .footer{display:flex; justify-content:space-between; align-items:center; margin-top:10px}
+    .small{color:var(--muted); font-size:12px}
+    .hidden{display:none !important}
+    /* Validation view styles */
+    .progress{height:10px; background:#0b1327; border:1px solid #1f2a44; border-radius:999px; overflow:hidden}
+    .bar{height:100%; width:0%; background:linear-gradient(90deg,#22c55e,#16a34a); transition:width .2s}
+    .grid{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px}
+    .chip{background:#0c1426; border:1px solid #1f2a44; border-radius:14px; padding:10px; min-height:86px}
+    .chip .title{font-size:13px; display:flex; gap:8px; align-items:center; font-weight:600}
+    .badge{font-size:11px; padding:3px 8px; border-radius:999px; display:inline-block; font-weight:700}
+    .b-green{background:#052e1a; color:#86efac; border:1px solid #14532d}
+    .b-amber{background:#2b2004; color:#facc15; border:1px solid #92400e}
+    .b-red{background:#2b0a0a; color:#fca5a5; border:1px solid #7f1d1d}
+    .skeleton{background:linear-gradient(90deg,#0c1426 0%,#12203b 50%,#0c1426 100%); background-size:200% 100%; animation:shimmer 1.2s infinite}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .tabs{display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap}
+    .tab{padding:8px 10px; border-radius:12px; border:1px solid #334155; cursor:pointer; font-size:13px}
+    .tab.active{background:#1e293b; border-color:#475569}
+    .finding{border:1px solid #1f2a44; background:#0c1426; border-radius:14px; padding:12px; display:flex; gap:12px; justify-content:space-between; align-items:start}
+    .pill{padding:4px 8px; border-radius:999px; font-size:11px; font-weight:700}
+    .p-blocker{background:#2b0a0a; color:#fca5a5; border:1px solid #7f1d1d}
+    .p-warning{background:#2b2004; color:#facc15; border:1px solid #92400e}
+    .p-info{background:#0b1e37; color:#93c5fd; border:1px solid #1d4ed8}
+    /* risk bar */
+    .riskbar{height:8px; background:#0b1327; border:1px solid #1f2a44; border-radius:999px; overflow:hidden; width:120px}
+    .riskbar > div{height:100%; width:0%; background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444); transition:width .8s}
+    .rbadge{font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid #334155; color:#cbd5e1; display:inline-block}
+    @media (max-width: 980px){ .grid{grid-template-columns:repeat(3,1fr)} }
+    @media (max-width: 620px){ .grid{grid-template-columns:repeat(2,1fr)} .app{grid-template-columns:1fr} .nav{display:none} }
+  </style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <div class="nav">
+    <div style="font-weight:800; letter-spacing:.04em; font-size:16px;">PAN-OS Autopilot</div>
+    <h2>Device Groups</h2>
+    <div class="tree">
+      <div class="item active">/ Global (All)</div>
+      <div class="item">/ Datacenter</div>
+      <div class="item">/ Branches</div>
+      <div class="item">/ Cloud VM-Series</div>
+      <div class="item">/ Lab & Staging</div>
+    </div>
+    <h2 style="margin-top:18px">Templates</h2>
+    <div class="tree">
+      <div class="item">Baseline-FW</div>
+      <div class="item">DC-HA-Template</div>
+      <div class="item">Branch-Edge-Template</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- STEP 1: Device Selector -->
+    <div id="view-select">
+      <div class="header">
+        <div>
+          <h1>Devices</h1>
+          <div class="muted">Select one or more devices to run <b>Pre-Upgrade Validation</b>.</div>
+        </div>
+        <div class="row">
+          <input id="search" type="text" placeholder="Search devices…"/>
+          <select id="filterVersion">
+            <option value="" selected>All Versions</option>
+            <option>8.1.x</option><option>9.1.x</option><option>10.2.x</option><option>11.0.x</option><option>11.1.x</option>
+          </select>
+          <select id="filterHA">
+            <option value="" selected>All HA</option><option>Active</option><option>Passive</option><option>Standalone</option>
+          </select>
+          <button id="validateSelected" class="btn" disabled>Run Validation for Selected</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <label class="row"><input type="checkbox" id="selectAll"/> <span class="small">Select all</span></label>
+          <span class="small" id="selCount">0 selected</span>
+        </div>
+        <div style="overflow:auto; max-height:58vh; border-radius:12px">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"></th>
+                <th>Device</th>
+                <th>Group</th>
+                <th>Model</th>
+                <th>PAN-OS</th>
+                <th>HA</th>
+                <th>Plugins</th>
+                <th>Status</th>
+                <th>Risk</th>
+                <th>Readiness</th>
+                <th>Last Check</th>
+              </tr>
+            </thead>
+            <tbody id="deviceRows"></tbody>
+          </table>
+        </div>
+        <div class="footer">
+          <div class="small" id="footerText">—</div>
+          <div class="row">
+            <button class="btn ghost" id="loadSamples">Reload Sample Devices</button>
+            <button class="btn secondary" id="nextToValidation" disabled>Next: Pre-Upgrade Validation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Validation View -->
+    <div id="view-validate" class="hidden">
+      <div class="header">
+        <div>
+          <h1>Pre-Upgrade Validation</h1>
+          <div class="muted">Target PAN-OS and readiness checks for the selected device(s).</div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="version">Target PAN-OS Version</label>
+            <input id="version" type="text" value="11.1.2"/>
+          </div>
+          <label class="row"><input id="autofix" type="checkbox" checked/> <span class="small">Enable Auto-Fix</span></label>
+          <button class="btn" id="run">Run Validation</button>
+          <button class="btn ghost" id="back">Back to Devices</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div class="row" style="justify-content:space-between; align-items:center">
+          <div>
+            <div style="font-weight:700">3-Minute SLA</div>
+            <div class="small">Real-time progress and ETA (demo speed).</div>
+          </div>
+          <div class="row">
+            <div class="tag">Selected: <span id="selSummary">—</span></div>
+            <div class="tag">Avg Risk: <span id="avgRisk">—</span></div>
+            <div class="tag ok">Ready (Green): <span id="kpiReady">—</span></div>
+            <div class="tag warn">Amber: <span id="kpiAmber">—</span></div>
+            <div class="tag err">Red: <span id="kpiRed">—</span></div>
+            <div class="tag">SLA: <span id="sla">3:00</span></div>
+          </div>
+        </div>
+        <div class="progress" style="margin-top:10px"><div class="bar" id="bar"></div></div>
+      </div>
+
+      <div id="areas" class="grid"></div>
+
+      <div class="card" style="margin-top:12px">
+        <div style="font-weight:700; margin-bottom:8px">Findings & Remediation</div>
+        <div class="tabs hidden" id="tabs"></div>
+        <div id="findings" class="col"></div>
+        <div class="row" style="justify-content:space-between; margin-top:12px">
+          <div class="row">
+            <div class="tag">Known Issues Matched: <span id="knownCount">—</span></div>
+            <div class="tag">Auto-Fix: <span id="autofixState">Yes</span></div>
+          </div>
+          <div class="row">
+            <button class="btn ghost" id="export" disabled>Export Report</button>
+            <button class="btn secondary" id="start" disabled>Start Upgrade</button>
+          </div>
+        </div>
+        <div class="small" style="margin-top:8px">Demo data shown. In production, risk/readiness would be computed by the AI model and cached per device.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Mock Data ----------
+const SAMPLE_DEVICES = [
+  { id: "fw-dc-01", name: "FW-DC-01", group:"/Datacenter", model:"PA-5410", version:"11.1.1", ha:"Active", plugins:"GP 2.3, SD-WAN", status:"Healthy", last:"Today 14:10" },
+  { id: "fw-dc-02", name: "FW-DC-02", group:"/Datacenter", model:"PA-5410", version:"11.1.1", ha:"Passive", plugins:"GP 2.3, SD-WAN", status:"Healthy", last:"Today 13:55" },
+  { id: "fw-br-az-01", name: "FW-BR-AZ-01", group:"/Branches", model:"PA-1410", version:"10.2.8-h2", ha:"Standalone", plugins:"GP 2.2", status:"Degraded", last:"Today 10:41" },
+  { id: "fw-br-ny-01", name: "FW-BR-NY-01", group:"/Branches", model:"PA-1410", version:"10.2.4", ha:"Standalone", plugins:"GP 2.1", status:"Healthy", last:"Yesterday" },
+  { id: "fw-br-sf-01", name: "FW-BR-SF-01", group:"/Branches", model:"PA-3410", version:"9.1.15", ha:"Standalone", plugins:"-", status:"Healthy", last:"Today 06:22" },
+  { id: "fw-vm-gcp-01", name: "FW-VM-GCP-01", group:"/Cloud VM-Series", model:"VM-300", version:"11.0.3", ha:"Active", plugins:"GP 2.3", status:"Healthy", last:"Today 11:10" },
+  { id: "fw-vm-aws-01", name: "FW-VM-AWS-01", group:"/Cloud VM-Series", model:"VM-500", version:"11.1.2", ha:"Passive", plugins:"SD-WAN", status:"Healthy", last:"Today 09:02" },
+  { id: "fw-lab-01", name: "FW-LAB-01", group:"/Lab & Staging", model:"PA-220", version:"8.1.26", ha:"Standalone", plugins:"-", status:"Healthy", last:"This Week" },
+  { id: "fw-dc-03", name: "FW-DC-03", group:"/Datacenter", model:"PA-5410", version:"11.1.2", ha:"Active", plugins:"GP 2.3, SD-WAN", status:"Healthy", last:"Today 11:47" },
+  { id: "fw-br-la-01", name: "FW-BR-LA-01", group:"/Branches", model:"PA-1410", version:"10.2.9", ha:"Standalone", plugins:"GP 2.2", status:"Degraded", last:"Today 12:17" },
+];
+
+let DEVICES = []; // live copy used by UI
+
+const FINDINGS = [
+  { id: "FND-001", area: "config", title: "Decryption profile uses deprecated cipher suite", severity: "warning",
+    guidance: "Remove TLS_RSA ciphers before upgrade.", autoFix: true, known: { id: "KI-1423", summary: "TLS_RSA compatibility change"}, impact: "Moderate", delta:+27 },
+  { id: "FND-002", area: "ha", title: "HA peers out-of-sync (content mismatch)", severity: "blocker",
+    guidance: "Sync content; ensure identical dynamic updates.", autoFix: false, impact: "High", delta:+45 },
+  { id: "FND-003", area: "licenses", title: "URL Filtering license expires in 12 days", severity: "info",
+    guidance: "Renew to avoid policy gaps.", autoFix: false, impact: "Low", delta:+5 },
+  { id: "FND-004", area: "known", title: "Known issue: App-ID rename may affect API traffic", severity: "warning",
+    guidance: "Add temporary rule and validate in simulator.", autoFix: false, known: { id: "KI-2099", summary: "App-ID rename ripple in 11.1.2" }, impact: "Moderate", delta:+18 },
+  { id: "FND-005", area: "network", title: "Data plane CPU spike risk during content reload", severity: "info",
+    guidance: "Decrease batch size for branch group B.", autoFix: false, impact: "Low", delta:+7 },
+];
+
+// ---------- Helpers ----------
+const $ = (q)=>document.querySelector(q);
+const $$ = (q)=>document.querySelectorAll(q);
+function el(tag, attrs={}, html=""){ const e=document.createElement(tag); Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v)); e.innerHTML=html; return e; }
+
+// ---------- Risk & Readiness Logic (Simulated AI) ----------
+function versionRisk(version){
+  try{
+    const parts = version.split('.').map(x=> parseInt(x.replace(/[^0-9]/g,'')) || 0);
+    const [maj,min] = parts;
+    let base = 30;
+    if(maj <= 9) base += 35;
+    else if(maj === 10 && min < 2) base += 20;
+    else if(maj === 10 && min >= 2) base += 10;
+    else if(maj === 11 && min === 0) base += 6;
+    return base;
+  }catch{ return 40; }
+}
+function haRisk(ha){ return ha === "Standalone" ? 12 : ha === "Passive" ? 6 : 4; }
+function statusRisk(status){ return status === "Degraded" ? 25 : status === "Healthy" ? 5 : 10; }
+function pluginRisk(plugins){ return /SD-WAN|GP/.test(plugins) ? 6 : 2; }
+function clamp(x,min,max){ return Math.max(min, Math.min(max, x)); }
+function readinessFromScore(s){
+  if(s < 40) return {label:"Green", cls:"ok"};
+  if(s < 70) return {label:"Amber", cls:"warn"};
+  return {label:"Red", cls:"err"};
+}
+function computeRisk(device){
+  const base = versionRisk(device.version) + haRisk(device.ha) + statusRisk(device.status) + pluginRisk(device.plugins);
+  const jitter = (device.id.charCodeAt(0) + device.id.length*7) % 9; // 0..8
+  const score = clamp(base + jitter, 5, 95);
+  const r = readinessFromScore(score);
+  return { score, readiness:r.label, rcls:r.cls };
+}
+function animateRiskBar(barEl, value){
+  setTimeout(()=>{ barEl.style.width = value + "%"; }, 200 + Math.random()*300);
+}
+
+// ---------- Step 1: Devices ----------
+function loadSampleDevices() {
+  DEVICES = JSON.parse(JSON.stringify(SAMPLE_DEVICES));
+  applyFilters(); // will render table
+}
+function renderDevices(list){
+  const body = $('#deviceRows'); body.innerHTML = '';
+  list.forEach(d=>{
+    const tr = el('tr',{},"");
+    tr.innerHTML = `
+      <td><input type="checkbox" class="chk" data-id="${d.id}"/></td>
+      <td>${d.name}</td>
+      <td>${d.group}</td>
+      <td>${d.model}</td>
+      <td>${d.version}</td>
+      <td>${d.ha}</td>
+      <td>${d.plugins}</td>
+      <td>${d.status === 'Healthy' ? '<span class="tag ok">Healthy</span>' : '<span class="tag warn">'+d.status+'</span>'}</td>
+      <td>
+        <div class="riskbar" title="Risk Score (0-100) — computed by AI Readiness Model v1.2">
+          <div></div>
+        </div>
+        <div class="small" data-risktext>—</div>
+      </td>
+      <td><span class="rbadge" data-readiness>—</span></td>
+      <td>${d.last}</td>
+    `;
+    tr.addEventListener('click', (e)=>{
+      if(e.target.tagName.toLowerCase()==='input') return;
+      const chk = tr.querySelector('.chk'); chk.checked = !chk.checked; updateSelectionState();
+    });
+    body.appendChild(tr);
+  });
+  updateSelectionState();
+}
+function updateSelectionState(){
+  const chks = $$('.chk'); const any = Array.from(chks).some(c=>c.checked);
+  const count = Array.from(chks).filter(c=>c.checked).length;
+  $('#validateSelected').disabled = !any;
+  $('#nextToValidation').disabled = !any;
+  $('#selCount').textContent = `${count} selected`;
+  $('#selectAll').checked = !!count && count === chks.length;
+}
+function applyFilters(){
+  const q = $('#search').value.toLowerCase();
+  const ver = $('#filterVersion').value;
+  const ha = $('#filterHA').value;
+  const filtered = DEVICES.filter(d=>{
+    const matchQ = !q || `${d.name} ${d.group} ${d.model} ${d.version} ${d.ha} ${d.plugins} ${d.status}`.toLowerCase().includes(q);
+    const matchV = !ver || d.version.startsWith(ver.replace('.x',''));
+    const matchH = !ha || d.ha===ha;
+    return matchQ && matchV && matchH;
+  });
+  renderDevices(filtered);
+  $('#footerText').textContent = `Showing ${filtered.length} of ${DEVICES.length} devices`;
+}
+function selectedDevices(){
+  return Array.from($$('.chk')).filter(c=>c.checked).map(c=>DEVICES.find(d=>d.id===c.dataset.id));
+}
+
+// ---------- Step 2: Validation ----------
+const AREAS = [ "Device Health","Configuration","HA State","Licenses","Network Readiness","Known Issues" ];
+function skel(w=100,h=14,r=8){ return `<div class="skeleton" style="height:${h}px;width:${w}%;border-radius:${r}px"></div>`; }
+function renderAreasPending() {
+  const wrap = $("#areas"); wrap.innerHTML = "";
+  AREAS.forEach(a=>{
+    wrap.insertAdjacentHTML("beforeend", `
+      <div class="chip">
+        <div class="title">${a}</div>
+        <div style="margin-top:8px; display:grid; gap:8px">
+          ${skel(60,10,999)} ${skel(100,8,999)} ${skel(80,8,999)}
+        </div>
+      </div>
+    `);
+  });
+}
+function renderAreasWithResults() {
+  const wrap = $("#areas"); wrap.innerHTML = "";
+  const s = ["info","warning","blocker","info","info","warning"];
+  AREAS.forEach((a,i)=>{
+    const sev = s[i]; const badge = sev==="blocker"?"b-red":sev==="warning"?"b-amber":"b-green";
+    const known = a==="Known Issues"? `<span class="tag">Matched 2 known issues</span>` : "";
+    wrap.insertAdjacentHTML("beforeend", `
+      <div class="chip">
+        <div class="title">${a}</div>
+        <div class="row" style="margin-top:8px; align-items:center; justify-content:space-between">
+          <span class="badge ${badge}">${sev[0].toUpperCase()+sev.slice(1)}</span>
+          ${known}
+        </div>
+      </div>
+    `);
+  });
+}
+function renderTabs(){ 
+  const tabs = $("#tabs"); tabs.classList.remove("hidden"); tabs.innerHTML = "";
+  const counts = { blocker: FINDINGS.filter(f=>f.severity==='blocker').length, warning: FINDINGS.filter(f=>f.severity==='warning').length, info: FINDINGS.filter(f=>f.severity==='info').length };
+  tabs.insertAdjacentHTML("beforeend", `<div class="tab active" data-scope="all">All (${FINDINGS.length})</div>`);
+  ["blocker","warning","info"].forEach(s=> tabs.insertAdjacentHTML("beforeend", `<div class="tab" data-scope="${s}">${s[0].toUpperCase()+s.slice(1)} (${counts[s]})</div>`));
+  tabs.onclick = (e)=>{ const t=e.target.closest('.tab'); if(!t)return; setActiveTab(t.dataset.scope); };
+}
+function renderFindings(scope="all"){
+  const list = $("#findings"); list.innerHTML = "";
+  const items = scope==="all"?FINDINGS:FINDINGS.filter(f=>f.severity===scope);
+  items.forEach(f=>{
+    const pill = f.severity==="blocker"?"p-blocker":f.severity==="warning"?"p-warning":"p-info";
+    const known = f.known? `<span class="tag">Known Issue ${f.known.id}: ${f.known.summary}</span>`:"";
+    const btn = f.autoFix? `<button class="btn">Apply Auto-Fix</button>`:`<button class="btn ghost">View Runbook</button>`;
+    const riskTxt = `Predicted Risk Impact: ${f.impact} (Δ +${f.delta})`;
+    list.insertAdjacentHTML("beforeend", `
+      <div class="finding">
+        <div>
+          <div style="font-weight:700; margin-bottom:6px">${f.title}</div>
+          <div style="margin:6px 0 10px 0" class="pill ${pill}">${f.severity[0].toUpperCase()+f.severity.slice(1)}</div>
+          <div class="muted" style="max-width:740px">${f.guidance}</div>
+          <div class="small" style="margin-top:6px">${riskTxt}</div>
+          <div style="margin-top:8px">${known}</div>
+        </div>
+        <div class="row">${btn}<button class="btn ghost">Open Case</button></div>
+      </div>
+    `);
+  });
+}
+function setActiveTab(scope){ $$('.tab').forEach(t=>t.classList.toggle('active', t.dataset.scope===scope)); renderFindings(scope); }
+
+function computeAndRevealRiskForSelection(){
+  const names = [];
+  const rows = Array.from($('#deviceRows').children);
+  let total = 0, n = 0, g=0,a=0,r=0;
+  rows.forEach(tr=>{
+    const chk = tr.querySelector('.chk');
+    if(!chk.checked) return;
+    const id = chk.dataset.id;
+    const d = DEVICES.find(x=>x.id===id);
+    if(!d) return;
+    names.push(d.name);
+    const result = computeRisk(d);
+    total += result.score; n++;
+    if(result.readiness==="Green") g++; else if(result.readiness==="Amber") a++; else r++;
+
+    const bar = tr.querySelector('.riskbar > div');
+    const txt = tr.querySelector('[data-risktext]');
+    const rb = tr.querySelector('[data-readiness]');
+    animateRiskBar(bar, result.score);
+    txt.textContent = `${result.score}`;
+    rb.textContent = result.readiness;
+    rb.className = `rbadge ${result.rcls}`;
+  });
+  const avg = n? Math.round(total/n) : "—";
+  $("#avgRisk").textContent = avg;
+  $("#kpiReady").textContent = g || "0";
+  $("#kpiAmber").textContent = a || "0";
+  $("#kpiRed").textContent = r || "0";
+  const joined = names.join(', ');
+  $("#selSummary").textContent = joined.length>48 ? joined.slice(0,45)+'…' : (joined || "—");
+}
+
+function startProgress(){
+  const bar = $("#bar"); const sla = $("#sla");
+  let ms=0, total=8000;
+  $("#export").disabled = true; $("#start").disabled = true;
+  $("#knownCount").textContent = "—";
+  $("#avgRisk").textContent = "—"; $("#kpiReady").textContent = "—"; $("#kpiAmber").textContent = "—"; $("#kpiRed").textContent = "—";
+  renderAreasPending();
+  $("#findings").innerHTML = `<div class="card skeleton" style="height:60px; border-radius:12px"></div>`;
+  $("#tabs").classList.add("hidden");
+
+  const i = setInterval(()=>{
+    ms+=200; const p = Math.min(100, Math.floor(ms/total*100));
+    bar.style.width = p+"%";
+    const remain = Math.max(0, 180 - Math.floor(ms/1000*180/8)); // scaled demo
+    const m = Math.floor(remain/60), s = String(remain%60).padStart(2,"0");
+    sla.textContent = `${m}:${s}`;
+    if(p===50){ computeAndRevealRiskForSelection(); }
+    if(p>=100){ clearInterval(i); finishValidation(); }
+  },200);
+}
+function finishValidation(){
+  renderAreasWithResults();
+  renderTabs();
+  renderFindings("all");
+  $("#export").disabled = false; $("#start").disabled = false;
+  $("#knownCount").textContent = "2";
+}
+
+// ---------- Routing & Init ----------
+function gotoValidation(){
+  const sel = selectedDevices();
+  if(!sel.length) { alert("Select at least one device"); return; }
+  $("#view-select").classList.add("hidden");
+  $("#view-validate").classList.remove("hidden");
+  $("#avgRisk").textContent = "—"; $("#kpiReady").textContent = "—"; $("#kpiAmber").textContent = "—"; $("#kpiRed").textContent = "—";
+}
+function backToDevices(){
+  $("#view-validate").classList.add("hidden");
+  $("#view-select").classList.remove("hidden");
+}
+
+function init(){
+  loadSampleDevices();
+  $("#search").addEventListener("input", applyFilters);
+  $("#filterVersion").addEventListener("change", applyFilters);
+  $("#filterHA").addEventListener("change", applyFilters);
+  $("#selectAll").addEventListener("change", (e)=>{
+    $$('.chk').forEach(c=> c.checked = e.target.checked);
+    updateSelectionState();
+  });
+  document.addEventListener("change", (e)=>{ if(e.target.classList && e.target.classList.contains("chk")) updateSelectionState(); });
+  $("#validateSelected").addEventListener("click", gotoValidation);
+  $("#nextToValidation").addEventListener("click", gotoValidation);
+  $("#back").addEventListener("click", backToDevices);
+  $("#run").addEventListener("click", startProgress);
+  $("#export").addEventListener("click", ()=> alert("Exported audit report (demo)."));
+  $("#start").addEventListener("click", ()=> alert("Starting upgrade… (demo)"));
+  $("#loadSamples").addEventListener("click", loadSampleDevices);
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
