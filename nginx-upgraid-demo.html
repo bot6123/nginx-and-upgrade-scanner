@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NGINX UpgrAId – AI-assisted NGINX Upgrade Orchestrator (Demo)</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#111a2b; --ink:#e9eefc; --muted:#a6b0c3; --accent:#32d296; --warn:#ffd166; --danger:#ff5d5d; --ok:#3ddc97; --blue:#6ea8ff;
+      --card:#0f172a; --line:#20304f; --pill:#1a2440; --chip:#0d1b2a;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#0a0f1d, #0b1220 40%, #0b1220);color:var(--ink);font:14px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:1180px;margin:24px auto;padding:0 16px}
+    header{display:flex;gap:16px;align-items:center;margin-bottom:16px}
+    .logo{width:40px;height:40px;border-radius:10px;background:radial-gradient(circle at 30% 30%, #32d296, #0ea5e9);box-shadow:0 0 0 2px #10213c, 0 8px 36px rgba(50,210,150,.35)}
+    h1{font-size:20px;margin:0}
+    .tag{background:var(--pill);padding:6px 10px;border-radius:999px;color:var(--muted);border:1px solid var(--line)}
+    .grid{display:grid;gap:16px}
+    @media(min-width:900px){.grid.cols-3{grid-template-columns:2fr 1.2fr 1.2fr}}
+    @media(min-width:900px){.grid.cols-2{grid-template-columns:1.6fr 2fr}}
+    section.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+    h2{font-size:16px;margin:0 0 10px 0;letter-spacing:.2px}
+    h3{font-size:14px;margin:10px 0;color:var(--muted)}
+    .kvs{display:grid;grid-template-columns:1fr 2fr;gap:6px 12px}
+    .kv-k{color:var(--muted)}
+    .kv-v{color:var(--ink)}
+    .btn{appearance:none;border:1px solid var(--line);background:linear-gradient(180deg,#162544,#121d33);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
+    .btn:hover{filter:brightness(1.05)}
+    .btn.primary{border-color:#1e3a5f;background:linear-gradient(180deg,#1b2b4b,#17243d);box-shadow:0 10px 22px rgba(30,80,160,.15)}
+    .btn.ghost{background:transparent}
+    .btn.warn{border-color:#665000;color:#ffe08a}
+    .btn.danger{border-color:#5f1e1e;color:#ff9c9c}
+    .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--pill);color:var(--muted)}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    textarea, pre, code, input, select{width:100%;background:#0a1426;color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    textarea{min-height:180px;resize:vertical}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .list{display:grid;gap:8px}
+    .item{background:#0a1426;border:1px solid var(--line);border-radius:12px;padding:10px}
+    .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--danger)}.blue{color:var(--blue)}
+    .meter{height:12px;border-radius:999px;background:#0a1426;border:1px solid var(--line);overflow:hidden}
+    .meter>span{display:block;height:100%;background:linear-gradient(90deg,#32d296,#6ea8ff);width:0}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+    .muted{color:var(--muted)}
+    .toast{position:fixed;right:18px;bottom:18px;background:#0a1426;border:1px solid var(--line);padding:12px 14px;border-radius:12px;opacity:0;transform:translateY(10px);transition:all .25s ease;z-index:50}
+    .toast.show{opacity:1;transform:translateY(0)}
+    .log{height:140px;overflow:auto;background:#071022;border:1px solid var(--line);border-radius:12px;padding:10px;font-size:12px}
+    .callout{border:1px dashed #2b3f6b;background:#0a152a;padding:10px;border-radius:12px;color:#c9d2e8}
+    footer{color:var(--muted);font-size:12px;margin:20px 0 40px}
+    .badge{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:#0e1a34;color:#cbd5e1}
+    .chip-row{display:flex;flex-wrap:wrap;gap:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>NGINX UpgrAId <span class="tag">Demo</span></h1>
+        <div class="muted">AI-assisted configuration analysis • zero-downtime upgrades • snapshot & rollback • audit reporting</div>
+      </div>
+    </header>
+
+    <div class="grid cols-3">
+      <!-- Environment Summary -->
+      <section class="card" id="env">
+        <h2>Customer Environment Summary</h2>
+        <div class="kvs">
+          <div class="kv-k">Hostname</div><div class="kv-v" id="host">edge-proxy-01</div>
+          <div class="kv-k">NGINX</div><div class="kv-v" id="ngver">1.24.0 (open source)</div>
+          <div class="kv-k">OS</div><div class="kv-v" id="os">Ubuntu 22.04 LTS</div>
+          <div class="kv-k">Package Source</div><div class="kv-v" id="pkg">F5 official repo</div>
+          <div class="kv-k">OpenSSL</div><div class="kv-v" id="ssl">1.1.1w</div>
+          <div class="kv-k">Modules</div>
+          <div class="kv-v chip-row" id="mods">
+            <span class="badge">http_v2</span>
+            <span class="badge">stream</span>
+            <span class="badge">lua (OpenResty)</span>
+            <span class="badge">brotli</span>
+            <span class="badge">geoip2</span>
+            <span class="badge">modsecurity</span>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn ghost" onclick="randomizeEnv()">Load another host</button>
+          <button class="btn" onclick="prefillConfig()">Load current nginx.conf</button>
+        </div>
+      </section>
+
+      <!-- Checklist -->
+      <section class="card">
+        <h2>Pre-Upgrade Checklist</h2>
+        <ul class="list" id="checklist">
+          <li class="item"><input type="checkbox"/> Backups: config, certs, keys, system packages</li>
+          <li class="item"><input type="checkbox"/> Staging: dry-run on canary node/pod</li>
+          <li class="item"><input type="checkbox"/> Repo pinned: consistent package source</li>
+          <li class="item"><input type="checkbox"/> Module matrix validated (lua, modsecurity, brotli, geoip2)</li>
+          <li class="item"><input type="checkbox"/> TLS compatibility (ciphers/curves) with OpenSSL target</li>
+          <li class="item"><input type="checkbox"/> Health checks for upstreams defined</li>
+        </ul>
+        <div class="callout" style="margin-top:10px">
+          Tip: NGINX reloads are graceful (<span class="mono">nginx -s reload</span>) but can still drop in-flight HTTP/2 streams under heavy concurrency. UpgrAId schedules drains accordingly.
+        </div>
+      </section>
+
+      <!-- Target Version & Strategy -->
+      <section class="card">
+        <h2>Target & Strategy</h2>
+        <label class="muted">Target NGINX Version</label>
+        <select id="target" class="mono">
+          <option value="1.26.2">1.26.2 (LTS)</option>
+          <option value="1.27.2">1.27.2</option>
+          <option value="1.25.5">1.25.5</option>
+        </select>
+        <label class="muted" style="margin-top:8px;display:block">Deployment Strategy</label>
+        <select id="strategy" class="mono">
+          <option value="canary">Canary</option>
+          <option value="rolling">Rolling</option>
+          <option value="bluegreen">Blue-Green</option>
+          <option value="inplace">In-place (single host)</option>
+        </select>
+        <div style="margin-top:12px" class="row">
+          <button class="btn primary" onclick="analyze()">Analyze Config</button>
+          <button class="btn" onclick="createSnapshot()">Create Snapshot</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:16px">
+      <!-- Config Analyzer -->
+      <section class="card">
+        <h2>Config Analyzer</h2>
+        <textarea id="conf" spellcheck="false" placeholder="# Paste nginx.conf here or click ‘Load current nginx.conf’ from Environment">
+user  nginx;
+worker_processes auto;
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+load_module modules/ngx_http_brotli_filter_module.so;
+load_module modules/ngx_http_brotli_static_module.so;
+# load_module modules/ngx_stream_module.so; # stream enabled on other nodes
+
+ events { worker_connections  4096; }
+
+ http {
+   include       /etc/nginx/mime.types;
+   default_type  application/octet-stream;
+   sendfile      on;
+   keepalive_timeout 65;
+   server_tokens off;
+   # Deprecated in 1.27+: http2_push_preload on;
+   # ssl on;  # legacy
+   ssl_protocols TLSv1.2 TLSv1.3;
+   ssl_ciphers HIGH:!aNULL:!MD5;
+
+   log_format json escape=json '{"time":"$time_iso8601","ip":"$remote_addr","req":"$request","status":$status}';
+   access_log /var/log/nginx/access.json json;
+
+   upstream app_backend {
+     zone backends 64k;
+     server 10.0.1.21:8080 max_fails=2 fail_timeout=10s;
+     server 10.0.1.22:8080 max_fails=2 fail_timeout=10s;
+     keepalive 64;
+     # health_check; # (plus)
+   }
+
+   server {
+     listen 443 ssl http2; # consider http3/quic on 443 quic;
+     server_name example.com;
+     add_header X-Frame-Options DENY;
+
+     location / {
+       proxy_pass http://app_backend;
+       proxy_http_version 1.1;
+       proxy_set_header Connection "";
+       proxy_set_header Host $host;
+     }
+   }
+ }
+        </textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" onclick="lint()">Lint</button>
+          <button class="btn" onclick="dryRun()">Dry-run Reload</button>
+          <button class="btn" onclick="suggestFixes()">Suggest Fixes</button>
+        </div>
+        <h3>Findings</h3>
+        <div class="list" id="findings"></div>
+
+        <h3>Risk Score</h3>
+        <div class="meter" aria-label="risk meter"><span id="meterBar"></span></div>
+        <div class="muted" id="riskText" style="margin-top:6px">Run analysis to score risk.</div>
+      </section>
+
+      <!-- Orchestration & Logs -->
+      <section class="card">
+        <h2>Upgrade Orchestration</h2>
+        <div class="row">
+          <button class="btn primary" onclick="deploy()">Deploy Upgrade</button>
+          <button class="btn warn" onclick="verify()">Post-Upgrade Verify</button>
+          <button class="btn danger" onclick="rollback()">Rollback</button>
+          <button class="btn" onclick="genReport()">Generate Audit Report</button>
+        </div>
+        <h3>Execution Log</h3>
+        <pre class="log" id="log" aria-live="polite">Ready.</pre>
+
+        <h3>Post-Upgrade Checks</h3>
+        <table class="table" id="checks">
+          <thead><tr><th>Check</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>HTTP(S) 200 rate</td><td class="muted">Pending</td><td class="muted">—</td></tr>
+            <tr><td>P95 latency</td><td class="muted">Pending</td><td class="muted">—</td></tr>
+            <tr><td>Upstream health</td><td class="muted">Pending</td><td class="muted">—</td></tr>
+            <tr><td>Error log anomalies</td><td class="muted">Pending</td><td class="muted">—</td></tr>
+            <tr><td>Config/Module drift</td><td class="muted">Pending</td><td class="muted">—</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px">
+      <h2>What this demo simulates (NGINX-specific)</h2>
+      <ul class="list">
+        <li class="item">Detects deprecated/changed directives (e.g., <span class="mono">http2_push_preload</span>, legacy <span class="mono">ssl on;</span>) and suggests modern equivalents.</li>
+        <li class="item">Flags module compatibility (lua, ModSecurity, brotli, geoip2) with target NGINX and OpenSSL versions.</li>
+        <li class="item">Plans a zero-downtime rollout (canary/rolling/blue-green) with graceful drains before <span class="mono">nginx -s reload</span>.</li>
+        <li class="item">Creates snapshots of config, site files, modules, and package versions for one-click rollback.</li>
+        <li class="item">Generates an auditable report with diffs, CVEs fixed, and performance deltas.</li>
+      </ul>
+    </section>
+
+    <footer>© Demo UI – NGINX UpgrAId. This is a front-end prototype; replace simulation hooks with your CI/CD or orchestration backend.</footer>
+  </div>
+
+  <div class="toast" id="toast">Done.</div>
+
+  <script>
+    // --- tiny helpers ---
+    const $ = sel => document.querySelector(sel);
+    const log = msg => { const el=$('#log'); el.textContent += "\n" + msg; el.scrollTop = el.scrollHeight; };
+    const toast = (t) => { const el=$('#toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1800)};
+    const rand = (min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+
+    // --- environment randomizer ---
+    const envs=[
+      {h:'edge-proxy-01', v:'1.24.0 (open source)', os:'Ubuntu 22.04', pkg:'F5 official repo', ssl:'1.1.1w', mods:['http_v2','stream','lua (OpenResty)','brotli','geoip2','modsecurity']},
+      {h:'api-gw-a', v:'1.25.5 (NGINX Plus R31)', os:'RHEL 9.3', pkg:'NGINX Plus repo', ssl:'3.0.13', mods:['http_v2','http3/quic','lua','brotli']},
+      {h:'storefront-fe-pod-7', v:'1.23.4 (container)', os:'Alpine 3.18', pkg:'Docker image', ssl:'1.1.1u', mods:['http_v2','geoip2','realip']}
+    ];
+    function randomizeEnv(){
+      const e=envs[rand(0,envs.length-1)];
+      $('#host').textContent=e.h; $('#ngver').textContent=e.v; $('#os').textContent=e.os; $('#pkg').textContent=e.pkg; $('#ssl').textContent=e.ssl;
+      const mods=$('#mods'); mods.innerHTML=''; e.mods.forEach(m=>{const s=document.createElement('span'); s.className='badge'; s.textContent=m; mods.appendChild(s);});
+      log(`Loaded environment: ${e.h} / ${e.v}`);
+    }
+
+    // --- config presets ---
+    function prefillConfig(){
+      const sample = document.getElementById('conf').value.trim();
+      document.getElementById('conf').value = sample; // already present; keep function for UX
+      toast('Loaded current nginx.conf');
+    }
+
+    // --- lint / analysis ---
+    function analyze(){
+      $('#findings').innerHTML='';
+      log('Analyzing configuration for target ' + $('#target').value + ' and strategy ' + $('#strategy').value + ' ...');
+      const issues = lint(true);
+      const risk = Math.min(100, Math.max(5, issues.score));
+      $('#meterBar').style.width = risk + '%';
+      $('#riskText').textContent = `Predicted risk: ${risk}% (lower is better)`;
+      toast('Analysis complete');
+    }
+
+    function lint(silent){
+      const t = $('#conf').value; const target = $('#target').value; const findings=$('#findings');
+      const out=[]; let score=10; // start low risk
+      const push=(sev,msg,fix)=>{out.push({sev,msg,fix}); if(sev==='bad') score+=25; if(sev==='warn') score+=12; };
+
+      if(/http2_push_preload\s+on/.test(t)) push('warn','`http2_push_preload` is deprecated in newer NGINX; HTTP/2 server push removed.','Remove directive; prefer Preload headers or 103 Early Hints.');
+      if(/\bssl\s+on;/.test(t)) push('bad','Legacy `ssl on;` found.','Remove it; use `listen 443 ssl;` blocks with explicit protocols.');
+      if(/listen\s+443\s+ssl\s+http2;/.test(t) && (target>='1.25.0')) push('warn','Consider enabling HTTP/3/QUIC on modern versions.','Add `listen 443 quic;` and configure `http3` if your clients support.');
+      if(/lua/.test(t) && /OpenSSL\s+1\.1/.test($('#ssl').textContent) && target>='1.26.0') push('warn','Lua + OpenSSL 1.1.x may need rebuild on newer NGINX/OpenSSL3.','Rebuild lua-nginx-module against OpenSSL 3 or pin OpenSSL.');
+      if(/geoip\b/.test(t)) push('warn','Legacy GeoIP detected.','Use `geoip2` with MaxMind DB.');
+      if(/keepalive_timeout\s+\d+;/.test(t)) push('warn','Tune `keepalive_timeout` for HTTP/2/3 workloads.','Common values 15–30s; validate with load test.');
+      if(/proxy_set_header\s+Connection\s+""/.test(t)) push('ok','Proxy connection header cleared for HTTP/1.1 keepalive.','✔');
+      if(!/log_format\s+json/.test(t)) push('warn','JSON access logs not configured.','Add JSON log for better anomaly detection.');
+      if(/upstream\s+[^{]+{[\s\S]*?keepalive\s+\d+;/.test(t)===false) push('warn','Upstream keepalive not configured.','Add `keepalive <N>` for connection reuse.');
+      if(/health_check;/.test(t)===false) push('warn','No active health checks on upstream.','Use NGINX Plus health checks or external liveness probes.');
+      if(/server_tokens\s+off;/.test(t)===false) push('warn','`server_tokens off;` missing.','Hide version in responses.');
+
+      findings.innerHTML = out.map(o=>`<div class="item"><b class="${o.sev}">${o.sev.toUpperCase()}</b> — ${o.msg}<div class="muted">Fix: ${o.fix}</div></div>`).join('');
+      if(!silent) { $('#meterBar').style.width = Math.min(100, Math.max(5, score)) + '%'; $('#riskText').textContent = `Estimated risk: ${score}%`; toast('Lint complete'); }
+      return {out, score};
+    }
+
+    function dryRun(){
+      log('Running dry-run: nginx -t && nginx -s reload (simulated) ...');
+      setTimeout(()=>{ log('syntax is ok'); log('test is successful'); toast('Dry-run passed'); }, 500);
+    }
+
+    function suggestFixes(){
+      const res = lint(true).out; if(!res.length){toast('No issues detected'); return;}
+      const fixes = res.map(r=>`• ${r.fix}`).join('\n');
+      alert('Suggested fixes based on analysis:\n\n'+fixes);
+    }
+
+    // --- snapshots ---
+    let snapshotId = null;
+    function createSnapshot(){
+      snapshotId = 'snap-' + Date.now();
+      log(`Snapshot created: ${snapshotId} (config, modules, certs, package list)`);
+      toast('Snapshot created');
+    }
+
+    // --- deploy / verify / rollback ---
+    function deploy(){
+      const strat=$('#strategy').value, tgt=$('#target').value; if(!snapshotId){createSnapshot()}
+      log(`Deploy started → strategy=${strat}, target=${tgt}`);
+      setTimeout(()=>log('Canary drain initiated (10%)'),400);
+      setTimeout(()=>log('Agent: module ABI check: ok (lua, brotli, geoip2, modsecurity)'),900);
+      setTimeout(()=>log('Package install: nginx '+tgt+' from pinned repo'),1300);
+      setTimeout(()=>log('Graceful reload: nginx -s reload'),1700);
+      setTimeout(()=>{ log('Traffic shift 10%→50%'); toast('Upgrade in progress')},2100);
+      setTimeout(()=>log('Canary SLOs healthy (HTTP 200 rate, P95 latency within baseline +5%)'),2600);
+      setTimeout(()=>log('Rollout completed across pool'),3200);
+    }
+
+    function verify(){
+      log('Running post-upgrade verification ...');
+      const rows = $('#checks').querySelectorAll('tbody tr');
+      const statuses=[
+        ['OK','200 rate within baseline'],
+        ['OK','P95 latency improved by '+rand(2,12)+'%'],
+        ['OK', 'All upstreams healthy'],
+        ['OK', 'No new error spikes'],
+        ['OK', 'No drift detected']
+      ];
+      rows.forEach((tr,i)=>{ tr.children[1].innerHTML='<span class="ok">OK</span>'; tr.children[2].textContent=statuses[i][1]; });
+      toast('Verification passed');
+      log('Verification passed – generating summary.');
+    }
+
+    function rollback(){
+      if(!snapshotId){toast('No snapshot to rollback to'); return;}
+      log(`Rollback initiated → restore ${snapshotId}`);
+      setTimeout(()=>log('Restored config & modules from snapshot'),800);
+      setTimeout(()=>log('Service reload to previous version'),1300);
+      setTimeout(()=>{log('Rollback completed'); toast('Rollback complete')},1800);
+    }
+
+    function genReport(){
+      const r = `# NGINX UpgrAId – Audit Report\n\n`+
+      `Environment: ${$('#host').textContent}\n`+
+      `From: ${$('#ngver').textContent}  →  To: ${$('#target').value}\n`+
+      `Strategy: ${$('#strategy').value}\n`+
+      `Snapshot: ${snapshotId||'n/a'}\n\n`+
+      `Findings: ${document.querySelectorAll('#findings .item').length} items\n`+
+      `Risk: ${$('#riskText').textContent}\n`+
+      `Post-Checks: All OK\n`+
+      `Notes: CVEs patched and TLS verified (simulated).`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(r).then(()=>toast('Report copied to clipboard'));
+      } else {
+        log('Clipboard API not available, report printed to console:');
+        console.log(r);
+        toast('Report printed to console (clipboard unavailable)');
+      }
+      log('Audit report ready. Paste into your ticket or notes.');
+    }
+
+    // boot
+    randomizeEnv();
+  </script>
+</body>
+</html>
